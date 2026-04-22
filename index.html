@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OBR & Voucher Tracker — PRMSU Budget Office</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- SETUP BANNER -->
+<div id="setup-banner" class="setup-banner hidden">
+  <div class="setup-banner-inner">
+    <span>⚠️ <strong>Google Sheets not connected.</strong> Open <code>js/api.js</code> and set your <code>API_URL</code>.</span>
+    <button onclick="this.closest('.setup-banner').classList.add('hidden')">✕</button>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="brand">
+    <div class="brand-logo">
+      <div class="brand-icon">📋</div>
+      <div>
+        <h1>OBR <span>&amp;</span> Voucher<br>Tracker</h1>
+        <div class="brand-sub">PRMSU — Budget Office</div>
+      </div>
+    </div>
+    <div class="year-chip" id="year-chip">📅 2025</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">Main</div>
+    <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+      <span class="nav-icon">📊</span><span>Dashboard</span>
+    </div>
+    <div class="nav-item" onclick="showPage('new-entry')" id="nav-new-entry">
+      <span class="nav-icon">📝</span><span>New Entry</span>
+    </div>
+    <div class="nav-item" onclick="showPage('records')" id="nav-records">
+      <span class="nav-icon">📋</span><span>Records</span>
+      <span class="nav-badge" id="nav-count">0</span>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">Tracking</div>
+    <div class="nav-item" onclick="showPage('tracker')" id="nav-tracker">
+      <span class="nav-icon">📍</span><span>Paper Tracker</span>
+    </div>
+    <div class="nav-item" onclick="showPage('budget')" id="nav-budget">
+      <span class="nav-icon">💰</span><span>Budget Summary</span>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">Export</div>
+    <div class="nav-item" onclick="exportExcel()">
+      <span class="nav-icon">📊</span><span>Excel</span>
+    </div>
+    <div class="nav-item" onclick="exportCSV()">
+      <span class="nav-icon">📄</span><span>CSV Export</span>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="db-status">
+      <div class="db-dot" id="db-dot"></div>
+      <span id="db-status-text">Connecting...</span>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title" id="topbar-title">📊 Dashboard</div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost" onclick="exportExcel()">📊 Excel</button>
+      <button class="btn btn-teal" onclick="showPage('tracker')">📍 Track Paper</button>
+      <button class="btn btn-primary" onclick="showPage('new-entry')">＋ New Entry</button>
+    </div>
+  </div>
+
+  <div id="page">
+
+    <!-- ══════════════════ DASHBOARD ══════════════════ -->
+    <div id="page-dashboard">
+      <div class="page-header-row">
+        <div>
+          <h2>Budget Office Overview</h2>
+          <p id="dash-date">Loading...</p>
+        </div>
+        <div class="year-filter-wrap">
+          <label>Taon:</label>
+          <select class="year-select" id="dash-year-filter" onchange="refreshDashboard();refreshBudgetPage();">
+            <option value="0">All Years</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ── TWO TOTAL CARDS: OBR + DV ── -->
+      <div class="dual-total-grid">
+
+        <!-- OBR / OBLIGATION TOTAL -->
+        <div class="reimb-hero-card obr-card">
+          <div class="rhc-main">
+            <div class="rhc-label">📋 TOTAL — OBR / OBLIGATION</div>
+            <div class="rhc-amount" id="reimb-total">₱0.00</div>
+            <div class="rhc-meta">
+              <span id="reimb-count">0 vouchers</span>
+              &nbsp;·&nbsp;
+              <span class="rhc-rel-label">Released: <strong id="reimb-released">₱0.00</strong></span>
+            </div>
+          </div>
+          <div class="rhc-stats">
+            <div class="rhc-stat">
+              <div class="rhc-stat-lbl">Pending</div>
+              <div class="rhc-stat-val" style="color:#fbbf24" id="reimb-pending">₱0.00</div>
+            </div>
+            <div class="rhc-divider"></div>
+            <div class="rhc-stat">
+              <div class="rhc-stat-lbl">In Process</div>
+              <div class="rhc-stat-val" style="color:#93c5fd" id="reimb-inprocess">₱0.00</div>
+            </div>
+            <div class="rhc-divider"></div>
+            <div class="rhc-stat">
+              <div class="rhc-stat-lbl">Released</div>
+              <div class="rhc-stat-val" style="color:#6ee7b7" id="reimb-released-stat">₱0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DISBURSEMENT VOUCHER TOTAL -->
+        <div class="reimb-hero-card dv-card">
+          <div class="rhc-main">
+            <div class="rhc-label">💵 TOTAL — DISBURSEMENT VOUCHER</div>
+            <div class="rhc-amount" id="dv-total">₱0.00</div>
+            <div class="rhc-meta">
+              <span id="dv-count">0 vouchers with DV</span>
+              &nbsp;·&nbsp;
+              <span class="rhc-rel-label">Released: <strong id="dv-released">₱0.00</strong></span>
+            </div>
+          </div>
+          <div class="rhc-stats">
+            <div class="rhc-stat">
+              <div class="rhc-stat-lbl">Pending</div>
+              <div class="rhc-stat-val" style="color:#fbbf24" id="dv-pending">₱0.00</div>
+            </div>
+            <div class="rhc-divider"></div>
+            <div class="rhc-stat">
+              <div class="rhc-stat-lbl">In Process</div>
+              <div class="rhc-stat-val" style="color:#93c5fd" id="dv-inprocess">₱0.00</div>
+            </div>
+            <div class="rhc-divider"></div>
+            <div class="rhc-stat">
+              <div class="rhc-stat-lbl">Released</div>
+              <div class="rhc-stat-val" style="color:#6ee7b7" id="dv-released-stat">₱0.00</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── PER CHARGE CODE BREAKDOWN ── -->
+      <div class="reimb-charge-card">
+        <div class="rcc-title">📋 Total per Charge Code</div>
+        <div class="rcc-sub">Breakdown ng obligations kada charge code</div>
+        <div id="reimb-per-charge"></div>
+      </div>
+
+      <!-- ── PIPELINE ── -->
+      <div class="pipeline-wrap">
+        <div class="pipeline-title">📌 Document Flow Pipeline</div>
+        <div class="pipeline">
+          <div class="pipe-stage">
+            <div class="pipe-bubble b-blue">1</div>
+            <div class="pipe-name">🏛 Budget Office</div>
+            <div class="pipe-count" id="pipe-bo">0 papers</div>
+          </div>
+          <div class="pipe-connector">→</div>
+          <div class="pipe-stage">
+            <div class="pipe-bubble b-purple">2</div>
+            <div class="pipe-name">🏠 OUP</div>
+            <div class="pipe-count" id="pipe-oup">0 papers</div>
+          </div>
+          <div class="pipe-connector">→</div>
+          <div class="pipe-stage">
+            <div class="pipe-bubble b-teal">3</div>
+            <div class="pipe-name">📋 Accounting</div>
+            <div class="pipe-count" id="pipe-acc">0 papers</div>
+          </div>
+          <div class="pipe-connector">→</div>
+          <div class="pipe-stage">
+            <div class="pipe-bubble b-green">✓</div>
+            <div class="pipe-name">✅ Released</div>
+            <div class="pipe-count" id="pipe-rel">0 papers</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── KPI CARDS ── -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon">📄</div>
+          <div class="kpi-label">Total Records</div>
+          <div class="kpi-value" id="kpi-total">0</div>
+          <div class="kpi-sub">All vouchers logged</div>
+        </div>
+        <div class="kpi-card kpi-green">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-label">Total Obligations</div>
+          <div class="kpi-value mono" id="kpi-amount">₱0.00</div>
+          <div class="kpi-sub">Sum of all amounts</div>
+        </div>
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-label">Released</div>
+          <div class="kpi-value" id="kpi-released">0</div>
+          <div class="kpi-sub">Completed &amp; released</div>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <div class="kpi-icon">⏳</div>
+          <div class="kpi-label">In Progress</div>
+          <div class="kpi-value" id="kpi-pending">0</div>
+          <div class="kpi-sub">Still being processed</div>
+        </div>
+      </div>
+
+      <!-- ── OFFICE CARDS ── -->
+      <div class="office-grid">
+        <div class="office-card oc-bl">
+          <div class="oc-stripe"></div>
+          <div class="office-card-inner">
+            <div class="oc-emoji">🏛</div>
+            <div class="oc-title">Budget Office</div>
+            <div class="oc-num" id="oc-bo">0</div>
+            <div class="oc-desc">papers currently here</div>
+          </div>
+        </div>
+        <div class="office-card oc-pu">
+          <div class="oc-stripe"></div>
+          <div class="office-card-inner">
+            <div class="oc-emoji">🏠</div>
+            <div class="oc-title">OUP</div>
+            <div class="oc-num" id="oc-oup">0</div>
+            <div class="oc-desc">papers currently here</div>
+          </div>
+        </div>
+        <div class="office-card oc-te">
+          <div class="oc-stripe"></div>
+          <div class="office-card-inner">
+            <div class="oc-emoji">📋</div>
+            <div class="oc-title">Accounting Office</div>
+            <div class="oc-num" id="oc-acc">0</div>
+            <div class="oc-desc">papers currently here</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CHARTS ── -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-card-title">📊 Obligations by Charge Code</div>
+          <div class="chart-card-sub">Ranked by total amount</div>
+          <div id="charge-bars"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">🔵 Status Breakdown</div>
+          <div class="chart-card-sub">By action taken</div>
+          <div class="pie-wrap">
+            <canvas id="pie-canvas" width="110" height="110"></canvas>
+            <div class="pie-legend" id="pie-legend"></div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /dashboard -->
+
+    <!-- ══════════════════ BUDGET SUMMARY ══════════════════ -->
+    <div id="page-budget" class="hidden">
+      <div class="page-header-row">
+        <div>
+          <h2>💰 Budget Summary</h2>
+          <p>Total obligations ng buong office</p>
+        </div>
+        <div class="year-filter-wrap">
+          <label>Taon:</label>
+          <select class="year-select" id="budget-year-filter" onchange="refreshBudgetPage()">
+            <option value="0">All Years</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="budget-hero">
+        <div class="bh-label">TOTAL OBLIGATIONS</div>
+        <div class="bh-amount" id="bh-total">₱0.00</div>
+        <div class="bh-sub" id="bh-sub">0 vouchers</div>
+      </div>
+
+      <div class="budget-breakdown-grid">
+        <div class="bb-card bb-pending">
+          <div class="bb-icon">⏳</div>
+          <div class="bb-label">Pending</div>
+          <div class="bb-amount" id="bb-pending">₱0.00</div>
+          <div class="bb-count" id="bb-pending-count">0 vouchers</div>
+        </div>
+        <div class="bb-card bb-process">
+          <div class="bb-icon">🔄</div>
+          <div class="bb-label">In Process</div>
+          <div class="bb-amount" id="bb-process">₱0.00</div>
+          <div class="bb-count" id="bb-process-count">0 vouchers</div>
+        </div>
+        <div class="bb-card bb-released">
+          <div class="bb-icon">✅</div>
+          <div class="bb-label">Released</div>
+          <div class="bb-amount" id="bb-released">₱0.00</div>
+          <div class="bb-count" id="bb-released-count">0 vouchers</div>
+        </div>
+        <div class="bb-card bb-disapproved">
+          <div class="bb-icon">❌</div>
+          <div class="bb-label">Disapproved / Returned</div>
+          <div class="bb-amount" id="bb-disapproved">₱0.00</div>
+          <div class="bb-count" id="bb-disapproved-count">0 vouchers</div>
+        </div>
+      </div>
+
+      <div class="tbl-wrap" style="margin-top:20px">
+        <div class="tbl-header-row">
+          <div style="font-size:13px;font-weight:700">📋 Breakdown per Charge Code</div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Charge Code</th><th>Vouchers</th><th>Total Amount</th>
+                <th>Released</th><th>Pending/In Process</th><th>% of Total</th>
+              </tr>
+            </thead>
+            <tbody id="budget-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="chart-card" style="margin-top:20px">
+        <div class="chart-card-title">📅 Monthly Obligations</div>
+        <div class="chart-card-sub">Total amount per month</div>
+        <div id="monthly-bars"></div>
+      </div>
+    </div><!-- /budget -->
+
+    <!-- ══════════════════ NEW ENTRY ══════════════════ -->
+    <div id="page-new-entry" class="hidden">
+      <div class="form-card">
+        <div class="form-card-header">
+          <div class="fch-icon">📝</div>
+          <div>
+            <h2>New Entry — <span id="form-year-label">Year 2025</span></h2>
+            <p>OBR / Obligation Request + Disbursement Voucher</p>
+          </div>
+        </div>
+        <div class="form-card-body">
+
+          <div class="section-sep">
+            <div class="section-sep-line"></div>
+            <div class="section-sep-label ssl-blue">📋 OBR / Obligation Request</div>
+            <div class="section-sep-line"></div>
+          </div>
+
+          <div class="form-grid g4 mb14">
+            <div class="form-group"><label>Date</label><input type="date" class="form-control" id="f-date"></div>
+            <div class="form-group"><label>Date In <span class="req">*</span></label><input type="date" class="form-control" id="f-date-in" onchange="updateFormYear()"></div>
+            <div class="form-group"><label>Time In</label><input type="time" class="form-control" id="f-time-in"></div>
+            <div class="form-group"><label>OBR / BUR No.</label><input type="text" class="form-control" id="f-obr-no" placeholder="163-2025-01-001"></div>
+          </div>
+          <div class="form-grid g2 mb14">
+            <div class="form-group"><label>Payee <span class="req">*</span></label><input type="text" class="form-control" id="f-payee"></div>
+            <div class="form-group"><label>Amount <span class="req">*</span></label><input type="number" class="form-control" id="f-amount" placeholder="0.00" step="0.01" min="0"></div>
+          </div>
+          <div class="form-grid g2 mb14">
+            <div class="form-group"><label>Charge To <span class="req">*</span></label><input type="text" class="form-control" id="f-charge-to" placeholder="e.g. GASS, MFO3"></div>
+            <div class="form-group"><label>Received &amp; Signed By</label><input type="text" class="form-control" id="f-received-by"></div>
+          </div>
+          <div class="form-grid g1 mb14">
+            <div class="form-group"><label>Particulars <span class="req">*</span></label><textarea class="form-control" id="f-particulars" placeholder="Obligation for reimbursement of expenses incurred re: ..."></textarea></div>
+          </div>
+          <div class="form-grid g3 mb14">
+            <div class="form-group"><label>Date Released (to Budget Office)</label><input type="date" class="form-control" id="f-date-released"></div>
+            <div class="form-group"><label>Time Out</label><input type="time" class="form-control" id="f-time-out"></div>
+            <div class="form-group"><label>Disbursement Voucher No.</label><input type="text" class="form-control" id="f-dv-no" placeholder="IGF2025-01-037"></div>
+          </div>
+
+          <div class="location-box">
+            <div class="location-box-title">📍 Starting Location ng Papel</div>
+            <div class="form-grid g2">
+              <div class="form-group">
+                <label>Office / Location</label>
+                <select class="form-control" id="f-location">
+                  <option value="Budget Office">🏛 Budget Office</option>
+                  <option value="OUP">🏠 OUP</option>
+                  <option value="Accounting Office">📋 Accounting Office</option>
+                </select>
+              </div>
+              <div class="form-group"><label>Received By (Initial)</label><input type="text" class="form-control" id="f-received-initial"></div>
+            </div>
+          </div>
+
+          <div class="section-sep mt22">
+            <div class="section-sep-line"></div>
+            <div class="section-sep-label ssl-amber">📑 Disbursement Voucher / OUP Section</div>
+            <div class="section-sep-line"></div>
+          </div>
+
+          <div class="dv-copy-notice">
+            <span>💡 Pwede mag-iba ang OBR at DV — i-edit kung kailangan</span>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="copyOBRtoDV()">🔄 I-copy mula sa OBR</button>
+          </div>
+
+          <div class="form-grid g3 mb14">
+            <div class="form-group"><label>Payee (DV)</label><input type="text" class="form-control" id="f-dv-payee"></div>
+            <div class="form-group"><label>Amount (DV)</label><input type="number" class="form-control" id="f-dv-amount" step="0.01" placeholder="0.00"></div>
+            <div class="form-group"><label>Charge To (DV)</label><input type="text" class="form-control" id="f-dv-charge"></div>
+          </div>
+          <div class="form-grid g1 mb14">
+            <div class="form-group"><label>Particulars (DV)</label><textarea class="form-control" id="f-dv-particulars"></textarea></div>
+          </div>
+          <div class="form-grid g3 mb14">
+            <div class="form-group"><label>Received &amp; Signed By (OUP)</label><input type="text" class="form-control" id="f-oup-received"></div>
+            <div class="form-group"><label>Date Released (to OUP)</label><input type="date" class="form-control" id="f-oup-date"></div>
+            <div class="form-group"><label>Time (OUP)</label><input type="time" class="form-control" id="f-oup-time"></div>
+          </div>
+          <div class="form-grid g2 mb14">
+            <div class="form-group">
+              <label>Action Taken</label>
+              <select class="form-control" id="f-action">
+                <option value="PENDING">⏳ PENDING</option>
+                <option value="OUP">🏠 OUP</option>
+                <option value="ACCOUNTING">📋 ACCOUNTING</option>
+                <option value="APPROVED">✅ APPROVED</option>
+                <option value="RELEASED">🎉 RELEASED</option>
+                <option value="DISAPPROVED">❌ DISAPPROVED</option>
+                <option value="RETURNED">↩ RETURNED</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-neutral" onclick="clearForm()">🗑 Clear</button>
+            <button class="btn btn-success" id="btn-save" onclick="saveEntry()">✅ Save Entry</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /new-entry -->
+
+    <!-- ══════════════════ RECORDS ══════════════════ -->
+    <div id="page-records" class="hidden">
+      <div class="records-toolbar">
+        <div class="records-info">
+          <h2>Records</h2>
+          <p id="rec-sub">All voucher entries</p>
+        </div>
+        <select class="year-select" id="rec-year-filter" onchange="filterRecords()" style="margin-right:4px">
+          <option value="0">All Years</option>
+        </select>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="rec-search" placeholder="Search payee, OBR no..." oninput="filterRecords()">
+        </div>
+        <select class="filter-select" id="rec-filter-status" onchange="filterRecords()">
+          <option value="">All Status</option>
+          <option value="PENDING">Pending</option>
+          <option value="OUP">OUP</option>
+          <option value="ACCOUNTING">Accounting</option>
+          <option value="APPROVED">Approved</option>
+          <option value="RELEASED">Released</option>
+          <option value="DISAPPROVED">Disapproved</option>
+          <option value="RETURNED">Returned</option>
+        </select>
+        <select class="filter-select" id="rec-filter-charge" onchange="filterRecords()">
+          <option value="">All Charges</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📄 CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportExcel()">📊 Excel</button>
+      </div>
+      <div class="tbl-wrap">
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Date In</th><th>OBR / BUR No.</th><th>Payee</th>
+                <th>Amount</th><th>Charge To</th><th>DV No.</th>
+                <th>Status</th><th>Location</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="records-tbody"></tbody>
+          </table>
+        </div>
+        <div id="records-empty" class="empty-state hidden">
+          <div class="es-icon">📦</div>
+          <h3>No records found</h3>
+          <p>Try a different search or filter, or add a new entry.</p>
+        </div>
+      </div>
+    </div><!-- /records -->
+
+    <!-- ══════════════════ TRACKER ══════════════════ -->
+    <div id="page-tracker" class="hidden">
+      <div class="tracker-wrap">
+        <div class="page-header">
+          <h2>📍 Paper Tracker</h2>
+          <p>Search and track the location of any document</p>
+        </div>
+        <div class="tracker-card">
+          <div class="tracker-search-row">
+            <input type="text" class="form-control" id="track-input"
+              placeholder="Search by OBR No., Payee, or DV No..."
+              onkeydown="if(event.key==='Enter') trackPaper()">
+            <button class="btn btn-primary" onclick="trackPaper()">🔍 Track</button>
+            <button class="btn btn-neutral" onclick="clearTracker()">✕ Clear</button>
+          </div>
+          <div id="track-result" class="hidden"></div>
+          <div id="track-all">
+            <div class="tal-header">Active Documents</div>
+            <div id="track-list"></div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tracker -->
+
+  </div><!-- #page -->
+</div><!-- #main -->
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Record Details</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay hidden" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="ci" id="confirm-icon">⚠️</div>
+    <h3 id="confirm-title">Confirm</h3>
+    <p id="confirm-msg"></p>
+    <div class="cbtn">
+      <button class="btn btn-neutral" onclick="confirmResolve(false)">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok" onclick="confirmResolve(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay hidden" id="loading-overlay">
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <div class="loading-msg" id="loading-msg">Loading...</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="api.js"></script>
+<script src="store.js"></script>
+<script src="ui.js"></script>
+<script src="form.js"></script>
+<script src="records.js"></script>
+<script src="tracker.js"></script>
+<script src="charts.js"></script>
+<script src="budget.js"></script>
+<script src="export.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
