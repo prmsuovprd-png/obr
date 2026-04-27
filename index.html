@@ -6,7 +6,7 @@
   <title>OBR & Voucher Tracker — PRMSU Budget Office</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
@@ -482,6 +482,14 @@
         <select class="filter-select" id="rec-filter-charge" onchange="filterRecords()">
           <option value="">All Charges</option>
         </select>
+        <select class="filter-select" id="rec-filter-dv" onchange="filterRecords()">
+          <option value="">All DV Types</option>
+          <option value="IGF">IGF</option>
+          <option value="BRF">BRF</option>
+          <option value="RAF">RAF</option>
+          <option value="TRF">TRF</option>
+          <option value="no-dv">— Walang DV pa</option>
+        </select>
         <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📄 CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="exportExcel()">📊 Excel</button>
       </div>
@@ -491,7 +499,8 @@
             <thead>
               <tr>
                 <th>#</th><th>Date In</th><th>OBR / BUR No.</th><th>Payee</th>
-                <th>Amount</th><th>Charge To</th><th>DV No.</th>
+                <th>Amount (OBR)</th><th>Charge To</th>
+                <th>DV No. / Payee / Amount</th>
                 <th>Status</th><th>Location</th><th>Actions</th>
               </tr>
             </thead>
@@ -578,6 +587,6 @@
 <script src="charts.js"></script>
 <script src="budget.js"></script>
 <script src="export.js"></script>
-<script src="app.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
