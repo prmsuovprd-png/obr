@@ -7,57 +7,26 @@ function renderRecords() {
   const q   = (document.getElementById('rec-search')?.value||'').toLowerCase();
   const sf  = document.getElementById('rec-filter-status')?.value||'';
   const cf  = document.getElementById('rec-filter-charge')?.value||'';
-  const dvf = document.getElementById('rec-filter-dv')?.value||'';
 
   // Rebuild charge filter
   const charges = [...new Set(db.map(r=>r.chargeTo||'').filter(Boolean))].sort();
-  const cSel = document.getElementById('rec-filter-charge');
-  const prevC = cSel?.value;
+  const cSel    = document.getElementById('rec-filter-charge');
+  const prevC   = cSel?.value;
   if (cSel) cSel.innerHTML = '<option value="">All Charges</option>' +
     charges.map(c=>`<option value="${c}" ${c===prevC?'selected':''}>${c}</option>`).join('');
 
-  // Rebuild DV type filter — auto-detect prefixes from actual DV numbers
-  const dvSel  = document.getElementById('rec-filter-dv');
-  const prevDV = dvSel?.value;
-  if (dvSel) {
-    const prefixes = [...new Set(
-      db.filter(r=>r.dvNo&&r.dvNo.trim())
-        .map(r=>{ const m=r.dvNo.trim().match(/^([A-Za-z]+)/); return m?m[1].toUpperCase():''; })
-        .filter(p=>p.length>=2)
-    )].sort();
-    dvSel.innerHTML =
-      '<option value="">All DV Types</option>' +
-      prefixes.map(p=>`<option value="${p}" ${p===prevDV?'selected':''}>${p}</option>`).join('') +
-      `<option value="no-dv" ${'no-dv'===prevDV?'selected':''}>— Walang DV pa</option>`;
-  }
-
   const filtered = db.filter(r => {
-    const txt = !q||
-      (r.payee||'').toLowerCase().includes(q)||
-      (r.obrNo||'').toLowerCase().includes(q)||
-      (r.dvNo||'').toLowerCase().includes(q)||
-      (r.dvPayee||'').toLowerCase().includes(q)||
-      (r.particulars||'').toLowerCase().includes(q)||
-      (r.chargeTo||'').toLowerCase().includes(q);
-    const matchStatus = !sf||r.action===sf;
-    const matchCharge = !cf||r.chargeTo===cf;
-    let matchDV = true;
-    if (dvf==='no-dv') { matchDV=!r.dvNo||r.dvNo.trim()===''; }
-    else if (dvf) { const m=(r.dvNo||'').trim().match(/^([A-Za-z]+)/); matchDV=(m?m[1].toUpperCase():'')=== dvf; }
-    return txt&&matchStatus&&matchCharge&&matchDV;
+    const txt = !q||(r.payee||'').toLowerCase().includes(q)||(r.obrNo||'').toLowerCase().includes(q)||(r.dvNo||'').toLowerCase().includes(q)||(r.particulars||'').toLowerCase().includes(q)||(r.chargeTo||'').toLowerCase().includes(q);
+    return txt && (!sf||r.action===sf) && (!cf||r.chargeTo===cf);
   });
 
   const sub = document.getElementById('rec-sub');
-  if (sub) {
-    let label = filtered.length+' of '+allDb.length+' record'+(allDb.length!==1?'s':'');
-    if (yr)              label += ' · '+yr;
-    if (dvf==='no-dv')   label += ' · Walang DV';
-    else if (dvf)        label += ' · DV: '+dvf;
-    sub.textContent = label;
-  }
+  if (sub) sub.textContent = filtered.length+' of '+allDb.length+' record'+(allDb.length!==1?'s':'')+
+    (yr ? ' ('+yr+')' : '');
 
   const tbody = document.getElementById('records-tbody');
   const empty = document.getElementById('records-empty');
+
   if (!filtered.length) { tbody.innerHTML=''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
 
@@ -69,15 +38,7 @@ function renderRecords() {
       <td><div style="font-weight:600">${escHtml(r.payee)}</div></td>
       <td class="amount">${fmtPHP(r.amount)}</td>
       <td><span class="charge-chip">${escHtml(r.chargeTo||'—')}</span></td>
-      <td>
-        <div class="dv-cell">
-          ${r.dvNo
-            ?`<div class="mono" style="font-weight:600;color:var(--blue)">${escHtml(r.dvNo)}</div>`
-            :`<span style="color:var(--subtle);font-size:12px">—</span>`}
-          ${r.dvPayee?`<div style="font-size:11px;color:var(--muted)">${escHtml(r.dvPayee)}</div>`:''}
-          ${r.dvAmount&&Number(r.dvAmount)>0?`<div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--teal)">${fmtPHP(r.dvAmount)}</div>`:''}
-        </div>
-      </td>
+      <td class="mono">${r.dvNo||'—'}</td>
       <td>${statusPill(r.action)}</td>
       <td style="font-size:12px;color:var(--muted)">${locationLabel(r.location)}</td>
       <td><div class="row-acts">
@@ -96,18 +57,15 @@ function viewRecord(id) {
   document.getElementById('modal-body').innerHTML = `
     <div class="detail-grid">
       <div class="detail-item"><label>Payee</label><p>${escHtml(r.payee)}</p></div>
-      <div class="detail-item"><label>Amount (OBR)</label><p class="mono">${fmtPHP(r.amount)}</p></div>
+      <div class="detail-item"><label>Amount</label><p class="mono">${fmtPHP(r.amount)}</p></div>
       <div class="detail-item"><label>OBR / BUR No.</label><p class="mono">${r.obrNo||'—'}</p></div>
-      <div class="detail-item"><label>DV No.</label><p class="mono" style="color:var(--blue);font-weight:700">${r.dvNo||'—'}</p></div>
-      <div class="detail-item"><label>DV Payee</label><p>${escHtml(r.dvPayee)||'—'}</p></div>
-      <div class="detail-item"><label>DV Amount</label><p class="mono" style="color:var(--teal)">${r.dvAmount&&Number(r.dvAmount)>0?fmtPHP(r.dvAmount):'—'}</p></div>
+      <div class="detail-item"><label>DV No.</label><p class="mono">${r.dvNo||'—'}</p></div>
       <div class="detail-item"><label>Date In</label><p>${r.dateIn||'—'}${r.timeIn?' at '+r.timeIn:''}</p></div>
       <div class="detail-item"><label>Charge To</label><p>${r.chargeTo||'—'}</p></div>
       <div class="detail-item"><label>Year</label><p class="mono">${r.year||'—'}</p></div>
       <div class="detail-item"><label>Status</label><p>${statusPill(r.action)}</p></div>
       <div class="detail-item"><label>Location</label><p>${locationLabel(r.location)}</p></div>
-      <div class="detail-item" style="grid-column:1/-1"><label>Particulars (OBR)</label><p>${escHtml(r.particulars)||'—'}</p></div>
-      ${r.dvParticulars?`<div class="detail-item" style="grid-column:1/-1"><label>Particulars (DV)</label><p>${escHtml(r.dvParticulars)}</p></div>`:''}
+      <div class="detail-item" style="grid-column:1/-1"><label>Particulars</label><p>${escHtml(r.particulars)||'—'}</p></div>
     </div>
     <div class="move-form">
       <label>Quick Update — Move / Change Status</label>
